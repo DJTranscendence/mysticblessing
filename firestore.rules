@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * MYSTIC FORGE AI - SECURITY RULES CONFIGURATION
+     *
+     * Core Philosophy: 
+     * This ruleset enforces a strict user-ownership model. Every piece of data in the 
+     * application is explicitly tied to a specific user's identity via their Firebase 
+     * Authentication UID. 
+     *
+     * Data Structure: 
+     * The database follows a hierarchical structure where all user-specific data is 
+     * nested under the `/users/{userId}` path. 
+     * - `/users/{userId}`: Stores the user's profile, settings, and credits.
+     * - `/users/{userId}/fortunes/{fortuneId}`: Stores the AI-generated fortunes for that user.
+     *
+     * Key Security Decisions:
+     * 1. Path-Based Authorization: The `{userId}` variable in the document paths must 
+     *    match the `request.auth.uid`. This provides immediate, low-cost authorization.
+     * 2. Authorization Independence: To avoid costly `get()` calls in rules, the 
+     *    `userId` is denormalized (copied) into the `Fortune` documents.
+     * 3. Prototyping Flexibility: While authorization is strictly enforced (who can 
+     *    access what), the internal schema of the documents is not strictly validated 
+     *    to allow for rapid iteration on the data model.
+     * 4. Deny-by-Default: Any access not explicitly allowed is denied.
+     */
+
+    // --- Global Helper Functions ---
+
+    /** 
+     * Returns true if the request is made by a signed-in user.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** 
+     * Returns true if the provided userId matches the authenticated user's UID.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** 
+     * Returns true if the document exists and the authenticated user is the owner.
+     * Used primarily for update and delete operations.
+     */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for the User profile document. Restricted to the account owner.
+     * @path /users/{userId}
+     * @allow (create) if the authenticated user's UID matches the document ID.
+     * @deny (get) if a user tries to view a profile that does not belong to them.
+     * @principle Enforces self-creation and strict ownership of the root user profile.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Rules for AI-generated fortunes. Private to the user who generated them.
+       * @path /users/{userId}/fortunes/{fortuneId}
+       * @allow (list) if the user is querying their own subcollection.
+       * @deny (update) if the user tries to change the 'userId' field on an existing fortune.
+       * @principle Uses path-based authorization supplemented by denormalized ownership fields.
+       */
+      match /fortunes/{fortuneId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+
+    // --- Catch-all Denial ---
+    // This is the safety net that ensures any paths not explicitly matched above are unreachable.
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

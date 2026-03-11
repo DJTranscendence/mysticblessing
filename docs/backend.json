@@ -1,0 +1,196 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user profile in the Mystic Forge AI application, storing user-specific settings and references to their generated fortunes. This entity complements an external authentication system like Firebase Auth.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "firebaseUid": {
+          "type": "string",
+          "description": "Unique identifier provided by Firebase Authentication for the user. (Relationship: Firebase Auth 1:1 User)"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's chosen display name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "subscriptionStatus": {
+          "type": "string",
+          "description": "The current subscription status of the user (e.g., 'free', 'premium')."
+        },
+        "credits": {
+          "type": "number",
+          "description": "The number of remaining credits the user has for premium features."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user's profile information was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "firebaseUid",
+        "email",
+        "subscriptionStatus",
+        "credits",
+        "createdAt"
+      ]
+    },
+    "Fortune": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Fortune",
+      "type": "object",
+      "description": "Represents a single generated blessing or prophecy, including the user's input data, the AI-generated text, and associated symbolic information.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Fortune entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who requested this fortune. (Relationship: User 1:N Fortune)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when this fortune was generated.",
+          "format": "date-time"
+        },
+        "nameInput": {
+          "type": "string",
+          "description": "The user's name provided as input for this specific fortune."
+        },
+        "birthMonthInput": {
+          "type": "string",
+          "description": "The user's birth month provided as input for this specific fortune."
+        },
+        "intentionInput": {
+          "type": "string",
+          "description": "The user's current intention provided as input for this specific fortune."
+        },
+        "moodInput": {
+          "type": "string",
+          "description": "The user's emotional state or mood provided as input for this specific fortune."
+        },
+        "interestsInput": {
+          "type": "array",
+          "description": "A list of user's interests provided as input for this specific fortune.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "favoriteColorInput": {
+          "type": "string",
+          "description": "The user's favorite color provided as input for this specific fortune."
+        },
+        "locationInput": {
+          "type": "string",
+          "description": "The user's location provided as input for this specific fortune (optional)."
+        },
+        "generatedBlessingText": {
+          "type": "string",
+          "description": "The complete text of the AI-generated mystical blessing or prophecy."
+        },
+        "generatedSymbols": {
+          "type": "string",
+          "description": "A JSON string storing the symbolic transformations and omens derived from user input and other random factors (e.g., season, element, animalGuide, sacredSymbol, emotionalOmen, colorAura, oraclePersona, sacredNumber, guidingSymbol, animalOmen)."
+        },
+        "oraclePersonaUsed": {
+          "type": "string",
+          "description": "The specific oracle persona (e.g., 'Forest Oracle', 'Star Oracle') used to generate this blessing."
+        },
+        "sacredNumber": {
+          "type": "number",
+          "description": "A sacred number generated and associated with this fortune."
+        },
+        "guidingSymbol": {
+          "type": "string",
+          "description": "A general guiding symbol generated for this fortune (e.g., 'moon', 'river', 'gate')."
+        },
+        "animalOmen": {
+          "type": "string",
+          "description": "An animal omen generated for this fortune (e.g., 'crane', 'fox', 'owl')."
+        },
+        "isPremiumFortune": {
+          "type": "boolean",
+          "description": "Indicates whether this fortune was generated using premium features or credits."
+        },
+        "shareImageUrl": {
+          "type": "string",
+          "description": "A URI to a shareable image generated for this fortune, suitable for social media.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "createdAt",
+        "generatedBlessingText",
+        "generatedSymbols",
+        "oraclePersonaUsed",
+        "isPremiumFortune"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile data, private to the authenticated user. The document ID (`userId`) must match `request.auth.uid`. Includes 'firebaseUid' which serves as a denormalized identifier for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user, matching their Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/fortunes/{fortuneId}",
+        "definition": {
+          "entityName": "Fortune",
+          "schema": {
+            "$ref": "#/backend/entities/Fortune"
+          },
+          "description": "Stores individual blessings/fortunes generated for a specific user. This data is private to the user. Includes denormalized 'userId' for authorization independence, ensuring the document's owner can be verified directly without parent document lookups.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns this fortune, matching their Firebase Authentication UID."
+            },
+            {
+              "name": "fortuneId",
+              "description": "The unique identifier for a specific generated fortune."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure for Mystic Forge AI is designed with a strong emphasis on Authorization Independence and Query Accessibility Patterns (QAPs), ensuring robust security rules and efficient data access.\n\n1.  **User Profiles (`/users/{userId}`):** User profiles are stored in a top-level collection `/users`. Each document's ID (`userId`) is mandated to be the Firebase Authentication UID of the respective user. This structure inherently ensures that access to a user's profile is restricted to that user (`request.auth.uid == userId`). Authorization independence is achieved because the document's ID directly serves as the authorization key, eliminating the need for `get()` operations to verify ownership. This also supports QAPs as any `list` or `get` operation must specify the `userId` in the path, which will be matched against `request.auth.uid`, thus ensuring that only authorized data is retrieved.\n\n2.  **User Fortunes (`/users/{userId}/fortunes/{fortuneId}`):** Fortunes are stored as a subcollection under their respective user's document. This maintains a clear hierarchical ownership model (`User 1:N Fortune`). To achieve **Authorization Independence (CRITICAL)**, every `Fortune` document includes a denormalized `userId` field. This `userId` field explicitly stores the Firebase UID of the fortune's owner, mirroring the parent document's ID and the authenticated user's UID. This denormalization allows security rules to evaluate `resource.data.userId == request.auth.uid` directly on the `Fortune` document itself, without needing to perform a `get()` call to the parent `/users/{userId}` document. This enables atomic writes (e.g., creating a fortune without first needing to verify the parent user) and drastically simplifies security rules, making them more performant and easier to debug. For **QAPs**, `list` queries for fortunes are intrinsically secure; a user can only query fortunes within their own `/users/{userId}/fortunes` path, where `{userId}` must match `request.auth.uid`. This design prevents accidental data exposure and ensures that `list` operations never return unauthorized data, adhering to the principle that 'rules are not filters'.\n\nThis design prioritizes clarity, security, and performance by leveraging path-based ownership, structural segregation, and strategic denormalization of authorization attributes, minimizing rule complexity and supporting scalable development."
+  }
+}
