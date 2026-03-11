@@ -203,7 +203,7 @@ type PromptInput = z.infer<typeof PromptInputSchema>;
 
 const blessingPrompt = ai.definePrompt({
   name: 'oracleBlessing',
-  model: 'vertexai/gemini-1.5-flash',
+  model: 'vertexai/gemini-1.5-flash-002',
   input: { schema: PromptInputSchema },
   output: { schema: GenerateBlessingOutputSchema },
   prompt: `
@@ -287,9 +287,9 @@ const generateBlessingFlow = ai.defineFlow(
     };
 
     try {
-      const result = await blessingPrompt(promptInput);
-      if (result.output?.blessing) {
-        return result.output;
+      const { output } = await blessingPrompt(promptInput);
+      if (output?.blessing) {
+        return output;
       }
       return fallbackBlessing(promptInput);
     } catch (err) {
